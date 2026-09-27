@@ -1,0 +1,19 @@
+[Unit]
+Description=EC2 self-stop HTTP endpoint
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/aws-vpn-restart
+EnvironmentFile=/etc/aws-vpn-restart.env
+ExecStart=/usr/bin/node /opt/aws-vpn-restart/server.js
+Restart=always
+RestartSec=5
+User=root
+Group=root
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

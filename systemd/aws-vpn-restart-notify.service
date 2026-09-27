@@ -1,0 +1,17 @@
+[Unit]
+Description=Email EC2 public IP after every system boot
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/aws-vpn-restart
+EnvironmentFile=/etc/aws-vpn-restart.env
+ExecStart=/opt/aws-vpn-restart/notify-public-ip.sh
+Restart=on-failure
+RestartSec=30
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

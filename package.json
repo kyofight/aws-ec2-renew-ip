@@ -1,0 +1,17 @@
+{
+  "name": "aws-vpn-restart",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A minimal self-restarting EC2 HTTP service with post-boot IP notification.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "send-ip-email": "node send-ip-email.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "nodemailer": "10.0.11"
+  }
+}
