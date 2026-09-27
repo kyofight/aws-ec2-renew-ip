@@ -3,16 +3,15 @@
 const http = require('node:http');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { execFile } = require('node:child_process');
-const { promisify } = require('node:util');
+const { spawn } = require('node:child_process');
 const { loadConfig, required } = require('./lib/config');
 
-const execFileAsync = promisify(execFile);
 const config = loadConfig();
 const port = Number(config.PORT || 3000);
 const host = config.HOST || '0.0.0.0';
 const stopPath = required(config, 'STOP_PATH');
 const restartToken = config.RESTART_TOKEN || '';
+const stopDelaySeconds = Number(config.STOP_REQUEST_DELAY_SECONDS || 3);
 const stopScript = path.join(__dirname, 'restart-ec.sh');
 
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -20,6 +19,9 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 }
 if (!stopPath.startsWith('/') || stopPath.includes('?')) {
   throw new Error('STOP_PATH must begin with / and must not contain a query string');
+}
+if (!Number.isInteger(stopDelaySeconds) || stopDelaySeconds < 1 || stopDelaySeconds > 60) {
+  throw new Error('STOP_REQUEST_DELAY_SECONDS must be an integer from 1 to 60');
 }
 if (!restartToken) {
   console.warn('WARNING: RESTART_TOKEN is empty; anyone who discovers the stop URL can stop this instance.');
@@ -47,15 +49,27 @@ function sendJson(response, statusCode, body) {
   response.end(JSON.stringify(body));
 }
 
-async function stopInstance() {
-  await execFileAsync(stopScript, [], {
-    timeout: 15_000,
+function launchStopRequest() {
+  const child = spawn(stopScript, [], {
+    detached: true,
     env: process.env,
-    maxBuffer: 16 * 1024
+    stdio: 'ignore'
+  });
+  child.unref();
+  child.once('error', (error) => {
+    console.error(`Could not launch scheduled stop request: ${error.message}`);
   });
 }
 
-const server = http.createServer(async (request, response) => {
+function scheduleStopRequest() {
+  const delayMilliseconds = stopDelaySeconds * 1_000;
+  setTimeout(() => {
+    console.info('Launching scheduled EC2 stop request.');
+    launchStopRequest();
+  }, delayMilliseconds).unref();
+}
+
+const server = http.createServer((request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
 
   if (request.method !== 'GET' || url.pathname !== stopPath) {
@@ -68,17 +82,15 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  try {
-    await stopInstance();
-    console.info(`Instance stop requested by ${request.socket.remoteAddress || 'unknown client'}`);
-    sendJson(response, 202, {
-      message: 'Instance stop has been requested. An email with its public IP will be sent whenever the instance next starts.'
-    });
-  } catch (error) {
-    const output = [error.stdout, error.stderr, error.message].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
-    console.error(`Unable to stop instance: ${output}`);
-    sendJson(response, 409, { error: 'The instance stop could not be requested.' });
-  }
+  response.once('finish', () => {
+    console.info(
+      `Instance stop scheduled by ${request.socket.remoteAddress || 'unknown client'}; launching in ${stopDelaySeconds} seconds.`
+    );
+    scheduleStopRequest();
+  });
+  sendJson(response, 202, {
+    message: `Instance stop has been scheduled. It will be requested in ${stopDelaySeconds} seconds; a public-IP email will be sent whenever the instance next starts.`
+  });
 });
 
 server.listen(port, host, () => {

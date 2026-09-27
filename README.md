@@ -116,7 +116,7 @@ curl -i \
   http://EC2_PUBLIC_IP:3000/stop-REPLACE_WITH_A_LONG_RANDOM_VALUE
 ```
 
-For a browser-only hidden link, use `http://EC2_PUBLIC_IP:3000/<STOP_PATH>?token=<RESTART_TOKEN>`. The server responds with `202 Accepted` after AWS accepts the stop request. Once you start the instance again, the notification service emails `NOTIFICATION_EMAIL` with its then-current public IP.
+For a browser-only hidden link, use `http://EC2_PUBLIC_IP:3000/<STOP_PATH>?token=<RESTART_TOKEN>`. The server returns `202 Accepted` **before** it runs the AWS command, then launches the stop request after `STOP_REQUEST_DELAY_SECONDS` (default: 3). This avoids a shutdown race where EC2 kills the local AWS CLI after accepting the stop request. A `202` confirms that the stop was scheduled locally, not that AWS has completed it. Once you start the instance again, the notification service emails `NOTIFICATION_EMAIL` with its then-current public IP.
 
 ## Operations
 
