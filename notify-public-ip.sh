@@ -5,6 +5,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 METADATA_URL="http://169.254.169.254/latest"
 
+: "${NODE_BIN:?NODE_BIN must be set to the absolute path returned by 'command -v node'}"
+if [[ ! -x "$NODE_BIN" ]]; then
+    echo "NODE_BIN is not an executable Node.js binary: $NODE_BIN" >&2
+    exit 1
+fi
 command -v curl >/dev/null 2>&1 || { echo "curl is required to query EC2 instance metadata." >&2; exit 1; }
 
 for attempt in $(seq 1 24); do
@@ -19,7 +24,7 @@ for attempt in $(seq 1 24); do
     fi
 
     if [[ "$public_ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-        node "$SCRIPT_DIR/send-ip-email.js" "$public_ip"
+        "$NODE_BIN" "$SCRIPT_DIR/send-ip-email.js" "$public_ip"
         echo "Public-IP notification completed for $public_ip"
         exit 0
     fi

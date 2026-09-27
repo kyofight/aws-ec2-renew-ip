@@ -41,9 +41,11 @@ Attach an IAM role to the EC2 instance with a policy equivalent to this example.
    sudo chmod 0755 /opt/aws-vpn-restart/restart-ec.sh /opt/aws-vpn-restart/notify-public-ip.sh
    ```
 
-2. Create the root-only environment file and fill in every placeholder. Generate values with `openssl rand -hex 32`.
+2. Create the root-only environment file and fill in every placeholder. Generate values with `openssl rand -hex 32`. First, run `command -v node` on the EC2 instance and set `NODE_BIN` to that exact absolute path. This is required because systemd does not inherit your interactive shell or nvm configuration.
 
    ```sh
+   command -v node
+   # Example output: /home/ec2-user/.nvm/versions/node/v24.9.0/bin/node
    sudo cp /opt/aws-vpn-restart/.env.example /etc/aws-vpn-restart.env
    sudo chmod 0600 /etc/aws-vpn-restart.env
    sudoedit /etc/aws-vpn-restart.env
@@ -65,6 +67,20 @@ Attach an IAM role to the EC2 instance with a policy equivalent to this example.
 `npm start` runs the server in the background through PM2. Manage that PM2 process with `npm stop`, `npm run restart`, `npm run logs`, and `npm run delete`.
 
 The supplied `aws-vpn-restart.service` is an alternative process manager. Do **not** run the PM2 commands while that systemd server service is enabled, or both managers will try to bind the same port. Continue using `aws-vpn-restart-notify.service` in either setup so every instance boot sends the IP notification.
+
+## Fix `node: command not found` in the boot notifier
+
+Set `NODE_BIN` in `/etc/aws-vpn-restart.env` to the exact output of `command -v node`. After deploying the updated project files to `/opt/aws-vpn-restart`, install the updated unit and restart only the notifier service:
+
+```sh
+command -v node
+sudoedit /etc/aws-vpn-restart.env
+# Add, for example: NODE_BIN=/home/ec2-user/.nvm/versions/node/v24.9.0/bin/node
+sudo install -m 0644 /opt/aws-vpn-restart/systemd/aws-vpn-restart-notify.service /etc/systemd/system/aws-vpn-restart-notify.service
+sudo systemctl daemon-reload
+sudo systemctl restart aws-vpn-restart-notify.service
+sudo journalctl -u aws-vpn-restart-notify.service -n 50 --no-pager
+```
 
 ## Trigger an instance stop
 
