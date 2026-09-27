@@ -2,16 +2,24 @@
   "name": "aws-vpn-restart",
   "version": "1.0.0",
   "private": true,
-  "description": "A minimal self-restarting EC2 HTTP service with post-boot IP notification.",
+  "description": "An EC2 self-stop endpoint with post-boot public-IP notification.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "pm2 start server.js --name aws-vpn-restart --time",
+    "stop": "pm2 stop aws-vpn-restart",
+    "restart": "pm2 restart aws-vpn-restart",
+    "delete": "pm2 delete aws-vpn-restart",
+    "logs": "pm2 logs aws-vpn-restart",
     "send-ip-email": "node send-ip-email.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "nodemailer": "10.0.11"
+    "nodemailer": "10.0.11",
+    "pm2": "7.0.4"
+  },
+  "overrides": {
+    "js-yaml": "4.3.2"
   }
 }

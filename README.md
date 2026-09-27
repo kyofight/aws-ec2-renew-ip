@@ -60,6 +60,12 @@ Attach an IAM role to the EC2 instance with a policy equivalent to this example.
 
 4. Allow the configured `PORT` only from trusted source addresses in the EC2 security group. If the port is directly exposed, use HTTPS via a reverse proxy.
 
+## PM2 lifecycle commands
+
+`npm start` runs the server in the background through PM2. Manage that PM2 process with `npm stop`, `npm run restart`, `npm run logs`, and `npm run delete`.
+
+The supplied `aws-vpn-restart.service` is an alternative process manager. Do **not** run the PM2 commands while that systemd server service is enabled, or both managers will try to bind the same port. Continue using `aws-vpn-restart-notify.service` in either setup so every instance boot sends the IP notification.
+
 ## Trigger an instance stop
 
 Use the exact configured path. The authorization header keeps the token out of browser history, access logs, and referrer headers:
