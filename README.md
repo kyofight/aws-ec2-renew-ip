@@ -66,6 +66,30 @@ Attach an IAM role to the EC2 instance with a policy equivalent to this example.
 
 `npm start` runs the server in the background through PM2. Manage that PM2 process with `npm stop`, `npm run restart`, `npm run logs`, and `npm run delete`.
 
+### PM2 environment configuration
+
+PM2 does **not** read `/etc/aws-vpn-restart.env`; that file belongs to the systemd units. The application uses the standard `dotenv` library to load a user-readable project `.env` file in the same directory as `server.js`; set `STOP_PATH` there. Do not edit `.env.example`—it is only a template.
+
+```sh
+cd /home/ubuntu/aws-ec2-renew-ip
+cp .env.example .env
+chmod 600 .env
+nano .env
+# Set STOP_PATH=/your-long-secret-path and all SMTP values.
+npm run delete || true
+npm start
+npm run logs
+```
+
+Alternatively, keep the settings in another user-readable file and provide it explicitly when starting or restarting PM2:
+
+```sh
+ENV_FILE=/home/ubuntu/private/aws-vpn-restart.env npm start
+ENV_FILE=/home/ubuntu/private/aws-vpn-restart.env npm run restart
+```
+
+The `start` and `restart` scripts use PM2's `--update-env` option, so exported variables and `ENV_FILE` changes are applied rather than using PM2's cached environment.
+
 The supplied `aws-vpn-restart.service` is an alternative process manager. Do **not** run the PM2 commands while that systemd server service is enabled, or both managers will try to bind the same port. Continue using `aws-vpn-restart-notify.service` in either setup so every instance boot sends the IP notification.
 
 ## Fix `node: command not found` in the boot notifier

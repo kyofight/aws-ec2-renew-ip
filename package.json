@@ -5,9 +5,9 @@
   "description": "An EC2 self-stop endpoint with post-boot public-IP notification.",
   "main": "server.js",
   "scripts": {
-    "start": "pm2 start server.js --name aws-vpn-restart --time",
+    "start": "pm2 start server.js --name aws-vpn-restart --time --update-env",
     "stop": "pm2 stop aws-vpn-restart",
-    "restart": "pm2 restart aws-vpn-restart",
+    "restart": "pm2 restart aws-vpn-restart --update-env",
     "delete": "pm2 delete aws-vpn-restart",
     "logs": "pm2 logs aws-vpn-restart",
     "send-ip-email": "node send-ip-email.js"
@@ -16,6 +16,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "dotenv": "18.0.4",
     "nodemailer": "10.0.11",
     "pm2": "7.0.4"
   },
