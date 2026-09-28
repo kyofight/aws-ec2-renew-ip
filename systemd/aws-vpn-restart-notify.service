@@ -5,14 +5,14 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/aws-vpn-restart
+WorkingDirectory=/home/ubuntu/aws-ec2-renew-ip
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/ubuntu/.nvm/versions/node/v22.23.3/bin
-EnvironmentFile=/etc/aws-vpn-restart.env
-ExecStart=/opt/aws-vpn-restart/notify-public-ip.sh
+EnvironmentFile=/home/ubuntu/aws-ec2-renew-ip/aws-vpn-restart.env
+ExecStart=/home/ubuntu/aws-ec2-renew-ip/notify-public-ip.sh
 Restart=on-failure
 RestartSec=30
-User=root
-Group=root
+User=ubuntu
+Group=ubuntu
 
 [Install]
 WantedBy=multi-user.target
