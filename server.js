@@ -93,6 +93,11 @@ const server = http.createServer((request, response) => {
   });
 });
 
+server.on('error', (error) => {
+  console.error(`HTTP server failed: ${error.stack || error.message}`);
+  process.exit(1);
+});
+
 server.listen(port, host, () => {
   console.info(`EC2 stop service listening on ${host}:${port}`);
 });

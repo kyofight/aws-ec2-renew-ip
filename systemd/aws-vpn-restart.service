@@ -2,15 +2,21 @@
 Description=EC2 self-stop HTTP endpoint
 Wants=network-online.target
 After=network-online.target
+# A broken Node path, configuration, or occupied port must become visible as a
+# failed unit rather than continuously respawning npm/Node at boot.
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/aws-vpn-restart
-Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/ubuntu/.nvm/versions/node/v22.23.3/bin/npm
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=/etc/aws-vpn-restart.env
-ExecStart=/usr/bin/env ${NPM_BIN} run start:service
-Restart=always
-RestartSec=5
+# Run the configured Node binary directly. Do not invoke npm or PM2 here:
+# npm installed through nvm commonly relies on an interactive-shell PATH.
+ExecStart=/usr/bin/env ${NODE_BIN} /opt/aws-vpn-restart/server.js
+Restart=on-failure
+RestartSec=10
 User=root
 Group=root
 NoNewPrivileges=true

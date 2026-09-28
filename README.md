@@ -41,13 +41,11 @@ Attach an IAM role to the EC2 instance with a policy equivalent to this example.
    sudo chmod 0755 /opt/aws-vpn-restart/restart-ec.sh /opt/aws-vpn-restart/notify-public-ip.sh
    ```
 
-2. Create the root-only environment file and fill in every placeholder. Generate values with `openssl rand -hex 32`. Run both `command -v node` and `command -v npm` on the EC2 instance, then set `NODE_BIN` and `NPM_BIN` to those exact absolute paths. This is required because systemd does not inherit your interactive shell or nvm configuration.
+2. Create the root-only environment file and fill in every placeholder. Generate values with `openssl rand -hex 32`. Run `command -v node` on the EC2 instance, then set `NODE_BIN` to that exact absolute path. This is required because systemd does not inherit your interactive shell or nvm configuration.
 
    ```sh
    command -v node
-   command -v npm
-   # Example Node output: /home/ec2-user/.nvm/versions/node/v24.9.0/bin/node
-   # Example npm output:  /home/ec2-user/.nvm/versions/node/v24.9.0/bin/npm
+   # Example output: /home/ec2-user/.nvm/versions/node/v24.9.0/bin/node
    sudo cp /opt/aws-vpn-restart/.env.example /etc/aws-vpn-restart.env
    sudo chmod 0600 /etc/aws-vpn-restart.env
    sudoedit /etc/aws-vpn-restart.env
@@ -66,25 +64,48 @@ Attach an IAM role to the EC2 instance with a policy equivalent to this example.
 
 ## Service management (systemd)
 
-The native `aws-vpn-restart.service` is the production process manager. It runs `npm run start:service`, which starts `server.js` in the foreground. Systemd owns the process, restarts it after a crash, and starts it automatically on every EC2 boot—PM2 is not required for this deployment.
+The native `aws-vpn-restart.service` is the production process manager. It invokes the configured `NODE_BIN` **directly** with `server.js` in the foreground; it does not invoke npm or PM2. Systemd owns the process, starts it automatically on every EC2 boot, and restarts genuine crashes.
 
-If you previously configured the failed `pm2-ubuntu` service, disable it before enabling the native service. Keep the notifier enabled so every boot emails the public IP:
+### Fix the high-CPU boot loop
+
+Earlier versions of the unit ran npm through an NVM `PATH` entry that incorrectly pointed to the `npm` executable instead of its containing `bin` directory. On boot, that could select a missing or incompatible Node executable, cause startup to exit, and—because `Restart=always` was set—repeat the launch indefinitely. The updated unit removes npm/PATH resolution, uses `NODE_BIN` directly, and stops retrying after three failed starts in one minute.
+
+Deploy the updated project to the service path `/opt/aws-vpn-restart` (or adjust both `WorkingDirectory` and `ExecStart` in the unit to match your chosen path). Then use this recovery procedure:
 
 ```sh
+# Stop the unhealthy native process and remove the old PM2 boot manager.
+sudo systemctl stop aws-vpn-restart.service
 sudo systemctl disable --now pm2-ubuntu.service || true
+sudo rm -f /etc/systemd/system/pm2-ubuntu.service
+
+# Confirm the Node executable used by systemd, then set NODE_BIN in the env file.
+command -v node
+sudoedit /etc/aws-vpn-restart.env
+# Example: NODE_BIN=/home/ubuntu/.nvm/versions/node/v22.23.3/bin/node
+
+# Install the updated native unit and start it cleanly.
 sudo install -m 0644 /opt/aws-vpn-restart/systemd/aws-vpn-restart.service /etc/systemd/system/aws-vpn-restart.service
-sudo install -m 0644 /opt/aws-vpn-restart/systemd/aws-vpn-restart-notify.service /etc/systemd/system/aws-vpn-restart-notify.service
 sudo systemctl daemon-reload
+sudo systemctl reset-failed aws-vpn-restart.service
 sudo systemctl enable --now aws-vpn-restart.service aws-vpn-restart-notify.service
-sudo systemctl status aws-vpn-restart.service aws-vpn-restart-notify.service --no-pager
+sudo systemctl status aws-vpn-restart.service --no-pager -l
 ```
 
-Manage the server with systemd:
+If the service fails instead of running, it will no longer consume a CPU core in a retry loop. Inspect the precise cause:
 
 ```sh
-sudo systemctl restart aws-vpn-restart.service
-sudo systemctl stop aws-vpn-restart.service
-sudo journalctl -u aws-vpn-restart.service -f
+sudo journalctl -b -u aws-vpn-restart.service --no-pager -n 100
+sudo systemctl show aws-vpn-restart.service -p NRestarts -p ExecMainStatus
+sudo ss -ltnp '( sport = :3000 )'
+```
+
+An `EADDRINUSE` error means another process owns the configured port, usually a residual PM2 process. As the `ubuntu` user, stop it before enabling the native service:
+
+```sh
+sudo -iu ubuntu
+cd /home/ubuntu/aws-ec2-renew-ip
+./node_modules/.bin/pm2 delete aws-vpn-restart || true
+exit
 ```
 
 ### Optional manual PM2 use
