@@ -14,7 +14,7 @@ Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/h
 EnvironmentFile=/home/ubuntu/aws-ec2-renew-ip/aws-vpn-restart.env
 # Run the configured Node binary directly. Do not invoke npm or PM2 here:
 # npm installed through nvm commonly relies on an interactive-shell PATH.
-ExecStart=/usr/bin/env ${NODE_BIN} /opt/aws-vpn-restart/server.js
+ExecStart=/usr/bin/env ${NODE_BIN} /home/ubuntu/aws-ec2-renew-ip/server.js
 Restart=on-failure
 RestartSec=10
 User=ubuntu
