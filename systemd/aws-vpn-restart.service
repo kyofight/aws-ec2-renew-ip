@@ -6,9 +6,9 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/aws-vpn-restart
-Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/ubuntu/.nvm/versions/node/v22.23.3/bin
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/ubuntu/.nvm/versions/node/v22.23.3/bin/npm
 EnvironmentFile=/etc/aws-vpn-restart.env
-ExecStart=/usr/bin/env ${NODE_BIN} /opt/aws-vpn-restart/server.js
+ExecStart=/usr/bin/env ${NPM_BIN} run start:service
 Restart=always
 RestartSec=5
 User=root

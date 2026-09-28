@@ -6,6 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "pm2 start server.js --name aws-vpn-restart --time --update-env",
+    "start:service": "node server.js",
     "stop": "pm2 stop aws-vpn-restart",
     "restart": "pm2 restart aws-vpn-restart --update-env",
     "delete": "pm2 delete aws-vpn-restart",
