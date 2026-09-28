@@ -10,6 +10,7 @@
     "restart": "pm2 restart aws-vpn-restart --update-env",
     "delete": "pm2 delete aws-vpn-restart",
     "logs": "pm2 logs aws-vpn-restart",
+    "save": "pm2 save",
     "send-ip-email": "node send-ip-email.js"
   },
   "engines": {

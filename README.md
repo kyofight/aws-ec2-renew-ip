@@ -90,7 +90,27 @@ ENV_FILE=/home/ubuntu/private/aws-vpn-restart.env npm run restart
 
 The `start` and `restart` scripts use PM2's `--update-env` option, so exported variables and `ENV_FILE` changes are applied rather than using PM2's cached environment.
 
-The supplied `aws-vpn-restart.service` is an alternative process manager. Do **not** run the PM2 commands while that systemd server service is enabled, or both managers will try to bind the same port. Continue using `aws-vpn-restart-notify.service` in either setup so every instance boot sends the IP notification.
+### Start the server whenever EC2 boots
+
+After confirming `npm start` serves the endpoint, register PM2 with systemd **once** as the deployment user (for example, `ubuntu`). The command preserves the Node path, which is necessary when Node was installed with nvm.
+
+```sh
+cd /home/ubuntu/aws-ec2-renew-ip
+NODE_DIRECTORY="$(dirname "$(command -v node)")"
+sudo env "PATH=${NODE_DIRECTORY}:$PATH" "$PWD/node_modules/.bin/pm2" startup systemd -u "$USER" --hp "$HOME"
+npm run save
+sudo systemctl enable --now "pm2-${USER}"
+sudo systemctl status "pm2-${USER}" --no-pager
+```
+
+`npm run save` records the active `aws-vpn-restart` PM2 process. Run it again whenever you add, remove, or rename PM2 processes. On the next EC2 start, the `pm2-<user>` systemd service restores that saved process list and the application loads its `.env` file.
+
+The supplied `aws-vpn-restart.service` is an alternative process manager. Do **not** run the PM2 commands while that systemd server service is enabled, or both managers will try to bind the same port. If you choose PM2, disable the native server unit but retain the notification unit:
+
+```sh
+sudo systemctl disable --now aws-vpn-restart.service
+sudo systemctl enable --now aws-vpn-restart-notify.service
+```
 
 ## Fix `node: command not found` in the boot notifier
 
