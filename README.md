@@ -54,8 +54,8 @@ Attach an IAM role to the EC2 instance with a policy equivalent to this example.
 3. Install and enable the services:
 
    ```sh
-   sudo install -m 0644 /opt/aws-vpn-restart/systemd/aws-vpn-restart.service /etc/systemd/system/aws-vpn-restart.service
-   sudo install -m 0644 /opt/aws-vpn-restart/systemd/aws-vpn-restart-notify.service /etc/systemd/system/aws-vpn-restart-notify.service
+   sudo install -m 0644 /home/ubuntu/aws-ec2-renew-ip/systemd/aws-vpn-restart.service /etc/systemd/system/aws-vpn-restart.service
+   sudo install -m 0644 /home/ubuntu/aws-ec2-renew-ip/systemd/aws-vpn-restart-notify.service /etc/systemd/system/aws-vpn-restart-notify.service
    sudo systemctl daemon-reload
    sudo systemctl enable --now aws-vpn-restart.service aws-vpn-restart-notify.service
    ```
@@ -84,7 +84,7 @@ sudoedit /etc/aws-vpn-restart.env
 # Example: NODE_BIN=/home/ubuntu/.nvm/versions/node/v22.23.3/bin/node
 
 # Install the updated native unit and start it cleanly.
-sudo install -m 0644 /opt/aws-vpn-restart/systemd/aws-vpn-restart.service /etc/systemd/system/aws-vpn-restart.service
+sudo install -m 0644 /home/ubuntu/aws-ec2-renew-ip/systemd/aws-vpn-restart.service /etc/systemd/system/aws-vpn-restart.service
 sudo systemctl daemon-reload
 sudo systemctl reset-failed aws-vpn-restart.service
 sudo systemctl enable --now aws-vpn-restart.service aws-vpn-restart-notify.service
@@ -145,4 +145,30 @@ sudo systemctl status aws-vpn-restart.service aws-vpn-restart-notify.service
 sudo journalctl -u aws-vpn-restart.service -u aws-vpn-restart-notify.service --since today
 ```
 
-The notifier runs once at every boot and retries every 30 seconds if IMDSv2, the public IPv4, or SMTP delivery is not yet available. It needs no restart marker, so manual and automated instance starts are notified too.
+The notifier runs after the HTTP service and retries only a bounded number of failed starts. It uses short IMDS requests, bounded SMTP connection/greeting/socket timeouts, low scheduling priority, and a 20% CPU cap. These safeguards ensure notification delivery cannot consume all CPU or indefinitely hold the boot environment. They do not replace host diagnostics for kernel, disk, memory, port-collision, or stale-unit failures.
+
+### Investigating an intermittent boot freeze
+
+Enable persistent journaling before reproducing the issue so a forced EC2 stop does not erase the evidence:
+
+```sh
+sudo mkdir -p /var/log/journal
+sudo systemd-tmpfiles --create --prefix /var/log/journal
+sudo systemctl restart systemd-journald
+```
+
+After a problematic boot—or while it is slow through EC2 Serial Console/SSM—collect these non-secret diagnostics before restarting either service:
+
+```sh
+sudo systemctl show aws-vpn-restart.service aws-vpn-restart-notify.service \
+  -p MainPID -p NRestarts -p Result -p ExecMainStatus -p TimeoutStartUSec
+sudo journalctl -b -o short-monotonic \
+  -u aws-vpn-restart.service -u aws-vpn-restart-notify.service --no-pager
+sudo journalctl -k -b --no-pager | grep -Ei 'oom|killed process|hung task|I/O error|nvme|ext4|xfs'
+sudo ss -ltnp '( sport = :3000 )'
+sudo ps -eo pid,ppid,stat,etime,%cpu,%mem,wchan:32,cmd --forest
+cat /proc/pressure/cpu /proc/pressure/io /proc/pressure/memory
+```
+
+A notifier/main-service race is not expected: they do not share a port or writable state. Evidence of `EADDRINUSE` indicates a competing Node/PM2 process; an OOM, hung-task, or I/O log indicates a host-level condition rather than the notification flow.
+

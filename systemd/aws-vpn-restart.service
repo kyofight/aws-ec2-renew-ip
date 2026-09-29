@@ -17,6 +17,11 @@ EnvironmentFile=/home/ubuntu/aws-ec2-renew-ip/aws-vpn-restart.env
 ExecStart=/usr/bin/env ${NODE_BIN} /home/ubuntu/aws-ec2-renew-ip/server.js
 Restart=on-failure
 RestartSec=10
+# This is a small, event-driven HTTP service. Keep a faulty process from
+# monopolizing a one-vCPU instance while preserving normal responsiveness.
+CPUQuota=50%
+MemoryMax=256M
+TasksMax=64
 User=ubuntu
 Group=ubuntu
 NoNewPrivileges=true
