@@ -108,6 +108,21 @@ cd /home/ubuntu/aws-ec2-renew-ip
 exit
 ```
 
+### Fixed one-minute delayed Node start
+
+The main systemd unit always waits 60 seconds before launching Node, allowing EC2 networking and boot work to settle. The delay applies to every service start, including manual restarts after a failure. It is fixed in `aws-vpn-restart.service`; no environment setting is required.
+
+Deploy the updated unit and restart it; it will remain `activating` for about one minute before Node begins listening:
+
+```sh
+sudo install -m 0644 /home/ubuntu/aws-ec2-renew-ip/systemd/aws-vpn-restart.service /etc/systemd/system/aws-vpn-restart.service
+sudo systemctl daemon-reload
+sudo systemctl restart aws-vpn-restart.service
+sudo systemctl status aws-vpn-restart.service --no-pager -l
+```
+
+This is a diagnostic mitigation, not proof that the Node process or notifier caused the boot freeze. If it improves reliability, retain the persistent-journal and cgroup diagnostics described below to identify the underlying boot-time dependency.
+
 ### Optional manual PM2 use
 
 PM2 remains available only for manual, non-systemd use: `npm start`, `npm stop`, `npm run restart`, and `npm run logs`. Do not configure PM2 to start at boot or run it while `aws-vpn-restart.service` is enabled, because both managers would bind the same port. For PM2, `dotenv` loads a user-readable project `.env` file (or `ENV_FILE`); systemd instead reads `/etc/aws-vpn-restart.env`.

@@ -12,6 +12,9 @@ Type=simple
 WorkingDirectory=/home/ubuntu/aws-ec2-renew-ip
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/ubuntu/.nvm/versions/node/v22.23.3/bin
 EnvironmentFile=/home/ubuntu/aws-ec2-renew-ip/aws-vpn-restart.env
+# Wait 60 seconds after every service start so EC2 networking and boot work can settle.
+TimeoutStartSec=2min
+ExecStartPre=/usr/bin/sleep 60
 # Run the configured Node binary directly. Do not invoke npm or PM2 here:
 # npm installed through nvm commonly relies on an interactive-shell PATH.
 ExecStart=/usr/bin/env ${NODE_BIN} /home/ubuntu/aws-ec2-renew-ip/server.js
