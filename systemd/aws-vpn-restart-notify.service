@@ -12,9 +12,7 @@ WorkingDirectory=/home/ubuntu/aws-ec2-renew-ip
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/ubuntu/.nvm/versions/node/v22.23.3/bin
 EnvironmentFile=/home/ubuntu/aws-ec2-renew-ip/aws-vpn-restart.env
 ExecStart=/home/ubuntu/aws-ec2-renew-ip/notify-public-ip.sh
-# Wait 60 seconds after every service start so EC2 networking and boot work can settle.
 # The script has bounded IMDS retries and the mailer has bounded SMTP timeouts.
-ExecStartPre=/usr/bin/sleep 60
 TimeoutStartSec=4min
 Restart=on-failure
 RestartSec=5min
